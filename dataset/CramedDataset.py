@@ -11,6 +11,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 import pdb
 
+
 class CramedDataset(Dataset):
 
     def __init__(self, args, mode='train'):
@@ -20,7 +21,11 @@ class CramedDataset(Dataset):
         self.label = []
         self.mode = mode
 
-        self.data_root = './data/'
+        # get the root path of current file
+        self.current_file_path = os.path.abspath(__file__)
+        self.current_dir = os.path.dirname(self.current_file_path)
+        self.data_root = os.path.join(self.current_dir, '../data')
+
         class_dict = {'NEU':0, 'HAP':1, 'SAD':2, 'FEA':3, 'DIS':4, 'ANG':5}
 
         self.visual_feature_path = args.visual_path

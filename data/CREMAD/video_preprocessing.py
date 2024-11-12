@@ -71,6 +71,9 @@ class CRAMED_dataset(object):
                 os.mkdir(save_dir)
             self.videoReader.video2frame_update(frame_save_path=save_dir)
 
-
-cramed = CRAMED_dataset()
-cramed.extractImage()
+# read path from terminal
+if __name__ == '__main__':
+    import sys
+    path_to_dataset = sys.argv[1]
+    cramed = CRAMED_dataset(path_to_dataset)
+    cramed.extractImage()

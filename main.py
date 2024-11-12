@@ -285,7 +285,7 @@ def main():
                 writer = SummaryWriter(os.path.join(writer_path, log_name))
 
                 batch_loss, batch_loss_a, batch_loss_v = train_epoch(args, epoch, model, device,
-                                                                     train_dataloader, optimizer, scheduler)
+                                                                     train_dataloader, optimizer, scheduler, writer)
                 acc, acc_a, acc_v = valid(args, model, device, test_dataloader)
 
                 writer.add_scalars('Loss', {'Total Loss': batch_loss,
