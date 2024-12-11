@@ -67,6 +67,10 @@ def train_epoch(args, epoch, model, device, dataloader, optimizer, scheduler, wr
     _loss_a = 0
     _loss_v = 0
 
+    acc_a_train = 0
+    acc_v_train = 0
+    acc_total_train = 0
+    num = 0
     for step, (spec, image, label) in enumerate(dataloader):
 
         #pdb.set_trace()
@@ -92,10 +96,26 @@ def train_epoch(args, epoch, model, device, dataloader, optimizer, scheduler, wr
             out_a = (torch.mm(a, torch.transpose(model.module.fusion_module.fc_out.weight[:, :weight_size // 2], 0, 1))
                      + model.module.fusion_module.fc_out.bias / 2)
 
-        loss = criterion(out, label)
-        loss_v = criterion(out_v, label)
+        loss = criterion(out, label)    
+        loss_v = criterion(out_v, label)  
         loss_a = criterion(out_a, label)
         loss.backward()
+
+        prediction = softmax(out)
+        pred_v = softmax(out_v)
+        pred_a = softmax(out_a)
+
+        for i in range(image.shape[0]):
+            ma = np.argmax(prediction[i].cpu().data.numpy())
+            v = np.argmax(pred_v[i].cpu().data.numpy())
+            a = np.argmax(pred_a[i].cpu().data.numpy())
+            num += 1.0
+            if np.asarray(label[i].cpu()) == ma:
+                acc_total_train += 1.0
+            if np.asarray(label[i].cpu()) == v:
+                acc_v_train += 1.0
+            if np.asarray(label[i].cpu()) == a:
+                acc_a_train += 1.0
 
         if args.modulation == 'Normal':
             # no modulation, regular optimization
@@ -121,7 +141,10 @@ def train_epoch(args, epoch, model, device, dataloader, optimizer, scheduler, wr
                 coeff_a = 1
             else:
                 coeff_a = 1 - tanh(args.alpha * relu(ratio_a))
+                # 1-tanh(0.7 * (1/0.17))
                 coeff_v = 1
+            # print("score_v: {:.3f}, score_a: {:.3f}, ratio_v: {:.3f}, ratio_a: {:.3f}, coeff_v: {:.3f}, coeff_a: {:.3f}, alpha: {:.3f}"
+            #         .format(score_v, score_a, ratio_v, ratio_a, coeff_v, coeff_a, args.alpha))
 
             if args.use_tensorboard:
                 iteration = epoch * len(dataloader) + step
@@ -158,7 +181,8 @@ def train_epoch(args, epoch, model, device, dataloader, optimizer, scheduler, wr
 
     scheduler.step()
 
-    return _loss / len(dataloader), _loss_a / len(dataloader), _loss_v / len(dataloader)
+    return _loss / len(dataloader), _loss_a / len(dataloader), _loss_v / len(dataloader), \
+            acc_total_train / num, acc_a_train / num, acc_v_train / num
 
 
 def valid(args, model, device, dataloader):
@@ -284,9 +308,11 @@ def main():
                 log_name = '{}_{}'.format(args.fusion_method, args.modulation)
                 writer = SummaryWriter(os.path.join(writer_path, log_name))
 
-                batch_loss, batch_loss_a, batch_loss_v = train_epoch(args, epoch, model, device,
-                                                                     train_dataloader, optimizer, scheduler, writer)
+                batch_loss, batch_loss_a, batch_loss_v, acc_t_t,acc_a_t,acc_v_t = \
+                                                train_epoch(args, epoch, model, device,
+                                                            train_dataloader, optimizer, scheduler, writer)
                 acc, acc_a, acc_v = valid(args, model, device, test_dataloader)
+                print("acc_t_t: {:.3f}, acc_a_t: {:.3f}, acc_v_t: {:.3f}".format(acc_t_t, acc_a_t, acc_v_t))
 
                 writer.add_scalars('Loss', {'Total Loss': batch_loss,
                                             'Audio Loss': batch_loss_a,
@@ -294,10 +320,14 @@ def main():
 
                 writer.add_scalars('Evaluation', {'Total Accuracy': acc,
                                                   'Audio Accuracy': acc_a,
-                                                  'Visual Accuracy': acc_v}, epoch)
+                                                  'Visual Accuracy': acc_v,
+                                                  'Total Accuracy Train': acc_t_t,
+                                                   'Audio Accuracy Train': acc_a_t,
+                                                   'Visual Accuracy Train': acc_v_t
+                                                  }, epoch)
 
             else:
-                batch_loss, batch_loss_a, batch_loss_v = train_epoch(args, epoch, model, device,
+                batch_loss, batch_loss_a, batch_loss_v, _1, _2, _3 = train_epoch(args, epoch, model, device,
                                                                      train_dataloader, optimizer, scheduler)
                 acc, acc_a, acc_v = valid(args, model, device, test_dataloader)
 

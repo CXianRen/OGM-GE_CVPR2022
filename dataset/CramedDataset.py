@@ -90,7 +90,9 @@ class CramedDataset(Dataset):
         select_index.sort()
         images = torch.zeros((self.args.fps, 3, 224, 224))
         for i in range(self.args.fps):
-            img = Image.open(os.path.join(self.image[idx], image_samples[i])).convert('RGB')
+            img = Image.open(os.path.join(self.image[idx], image_samples[select_index[i]])).convert('RGB')
+            # img = Image.open(os.path.join(self.image[idx], image_samples[i])).convert('RGB')
+
             img = transform(img)
             images[i] = img
 
